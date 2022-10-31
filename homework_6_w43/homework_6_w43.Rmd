@@ -1,0 +1,69 @@
+---
+title: "6:W43: Practicing functions with Gapminder"
+author: "Sille Hasselbalch Markussen"
+date: "10/31/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Use the gapminder dataset from Week 43 to produce solutions to the three tasks below. Post the .R script or .Rmd and .html in your au##### github repository and link it here:
+```{r Loading libraries and data}
+library(tidyverse)
+library(gapminder)
+
+head(gapminder)
+```
+
+
+## Exercise 1
+Define a defensive function that calculates the Gross Domestic Product of a nation from the data available in the gapminder dataset. You can use the population and GDPpercapita columns for it. Using that function, calculate the GDP of Denmark in the following years: 1967, 1977, 1987, 1997, 2007, and 2017.
+```{r Exercise 1}
+# Writing a function for calculating GDP, with data, neation and year as parameters
+GDP_function <- function(dat, Nation, Year){
+  # Requiring the year parameter to be in the data, otherwise return error
+  stopifnot(Year %in% dat$year)
+  
+  # Filtering data to calculate the GDP of a specific nation on a specific year 
+  dat <- dat %>% 
+    filter(country == Nation, year == Year)
+  
+  # Returning the calculated GDP
+  return(dat$pop*dat$gdpPercap)
+}
+
+# Using the function to calculate for different years for DK
+GDP_function(gapminder, "Denmark", 1967)
+GDP_function(gapminder, "Denmark", 1977)
+GDP_function(gapminder, "Denmark", 1987)
+GDP_function(gapminder, "Denmark", 1997)
+GDP_function(gapminder, "Denmark", 2007)
+
+# Since 2017 is not within the range of the data, the function returns an error when running the following code
+# GDP_function(gapminder, "Denmark", 2017)
+# Year %in% dat$year er ikke TRUE
+```
+<br>
+
+## Exercise 2
+Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘B’ , and prints out whether the life expectancy is smaller than 50, between 50 and 70, or greater than 70. (Hint: remember the grepl function, and review the Control Flow tutorial)
+
+```{r}
+
+#for (i in 1:length(gapminder))
+
+```
+
+<br> 
+
+## Challenge/Optional: 
+Write a script that loops over each country in the gapminder dataset, tests whether the country starts with a ‘M’ and graphs life expectancy against time (using plot() function) as a line graph if the mean life expectancy is under 50 years.
+```{r}
+
+```
+
+
+
+Hint: If you are struggling with the gapminder tibble format, consider converting it into a dataframe, either by downloading it from the internet and loading it via read.csv (not read_csv), and/or using as.data.frame() conversion function and then appropriately subsetting.
