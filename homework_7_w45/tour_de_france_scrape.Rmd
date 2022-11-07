@@ -1,0 +1,160 @@
+---
+title: "web_scraping_tdf"
+author: "Sille Hasselbalch Markussen"
+date: "11/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(rvest)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(janitor)
+library(ggplot2)
+```
+<br>
+
+I will be using the archive on https://www.cyclingstage.com/ to scrape data about Tour de france stages from 2015 to 2023. I'll use this data to see the change in stage type (e.g. flat, hill mountain, etc.) over the years. 
+
+### Scraping data
+
+__Defining scrape funciton and testing it__
+```{r Scrape function}
+
+scrape_tdf <- function(website){
+	url <- read_html(website)
+	tdf_table <- url %>% 
+ 			html_nodes("table") %>%
+ 			html_table()  # result is a list
+  tdf_table <- do.call(cbind,unlist(tdf_table, recursive = FALSE))
+}
+
+# Testing on 2015 route
+tdf2015 <- scrape_tdf("https://www.cyclingstage.com/tour-de-france-2015-route/")
+summary(as_tibble(tdf2015))
+
+# It works :))
+```
+
+__Scraping routes from 2015-2023__
+```{r loop}
+# Create a container for the results
+tdf_route_stages <- 0  # we need to create an empty container
+
+# Create a list of url endings for the different years
+year_endings <- paste0(2015:2023,"-route/")
+
+# Loop over the years to iterate the scraping
+for (year in year_endings){  
+	print(year) # let's check which year we are in
+	url <- "https://www.cyclingstage.com/tour-de-france-" 
+	website <- paste0(url,year)  # here we bind the year to the website to form the URL
+	tdf_table <- scrape_tdf(website) # here we apply the scraping function
+	tdf_route_stages <- rbind(tdf_route_stages, tdf_table) # we add the scraped results from the given year to our master dataset
+	}
+head(tdf_route_stages)
+```
+
+### Cleaning the data
+
+__Changing data format to tibble__
+```{r Changing data format to tibble}
+tdf_route_stages <- as_tibble(tdf_route_stages)
+summary(tdf_route_stages)
+```
+__Handling empty values__
+```{r Handling empty values}
+# Removing first row (it is empty)
+tdf_route_stages <- tdf_route_stages[-1,]
+
+# Removing rest days 
+tdf_route_stages <- tdf_route_stages %>% 
+	filter(!grepl("[Rr]est day*", Length))
+```
+
+__Cleaning length column__
+```{r Cleaning length column}
+# Making decimal point consistent
+tdf_route_stages$Length <- gsub("\\,", "\\.", tdf_route_stages$Length)
+
+# Extracting only numbers from the string and changing the column to numeric
+tdf_route_stages$Length <- as.numeric(regmatches(tdf_route_stages$Length, regexpr("\\d+\\.?\\d+",tdf_route_stages$Length)))
+
+```
+
+__Cleaning dates__
+```{r Cleaning dates}
+tdf_route_stages$Year <- as.numeric(substring(tdf_route_stages$`Start and finish`, 15, 19))
+
+# NAs are produced since not all start and finish have the year in the string
+# Examining the data, this inconsistency is only for 2023 stages.
+# I therefore replace NAs with 2023
+tdf_route_stages$Year <- replace_na(tdf_route_stages$Year, 2023)
+
+# Removing any text other than the date format d-m
+tdf_route_stages$Date <- regmatches(tdf_route_stages$Date, regexpr("\\d+\\-\\d",tdf_route_stages$Date))
+# Adding year to the date
+tdf_route_stages$Date <- paste0(tdf_route_stages$Date, "-", tdf_route_stages$Year)
+
+# This last part may be a bit unnessecary, but I thought at some point that I might have to use it :)
+```
+__Stage numbers__
+```{r V1}
+tdf_route_stages<- tdf_route_stages %>% 
+	rename(Stage_number = V1)
+tdf_route_stages$Stage_number <- as.numeric(tdf_route_stages$Stage_number)
+```
+
+__Grouping varieties of stage types__
+```{r Type}
+# Checking the unique stage types 
+unique(tdf_route_stages$Type)
+```
+<br>
+I find the following categories: <br>
+__ITT__ (individual time trial) - also including flat ITT, ITT (mountains), and ITT (hills) <br>
+__cobbles__ <br>
+__mountains__ - also including mountain, mountain finish, mountains (flat start), and mountains (flat finish) <br>
+__hills__ - also including hills (flat finish), hilly (flat start), hilly (flat finish), heuvels, hilly, hilly (finish uphill), and finish uphill <br>
+__flat__ - also including flat, finish uphill <br>
+__TTT__ (team time trial) <br>
+
+```{r Grouping}
+# new column for grouped types
+tdf_route_stages$Type_grouped <- as.factor(tdf_route_stages$Type)
+
+# Defining the levels of types 
+levels(tdf_route_stages$Type_grouped) <- 
+	list("ITT (Individual time trial)"= c("ITT", "flat ITT","ITT, mountains", "ITT (hills)"), 
+			 "cobbles" = "cobbles",
+			 "mountains" = c("mountain", "mountain finish","mountains, flat start", "mountains, flat finish"),
+			 "hills" = c("hills, flat finish", "hilly, flat start","hilly, flat finish", "heuvels", "hilly","hilly, finish uphill", "finish uphill"),
+			 "flat" = c("flat", "flat, finish uphill"),
+			 "TTT (Team time trial)" = "TTT")
+```
+
+The data is now properly cleaned and wrangled to see the change in stage type (e.g. flat, hill, mountain, etc.) over the years.
+
+### Plotting the data
+```{r}
+ggplot(tdf_route_stages, aes(y = Length, x= Stage_number, fill = Type_grouped)) +
+  geom_col()+
+	labs(x = "Stage number", y = "Stage length", fill = "Stage type", title = "Stage length and type by year")+
+	facet_wrap(~Year)
+ 
+ggplot(tdf_route_stages, aes(x= Year)) +
+  geom_bar(fill = "Yellow")+
+	labs(title = "Stage type distribution by year") +
+	facet_wrap(~Type_grouped)
+
+
+```
+<br>
+It seems that the types of stages in the Tour de France routes do not differ much over the years. One can see that team time trials are less prevalent in the more recent year. It is also visible that the route in 2016 included more mountain stages and less stages with hills than the other years. 
+
