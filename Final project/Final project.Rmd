@@ -1,0 +1,146 @@
+---
+title: "Final project"
+author: "Sille Hasselbalch Markussen"
+date: "11/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Loading libraries and data}
+pacman::p_load(tidyverse, ravelRy, lubridate)
+```
+
+## Example data acquisition, cleaning and visualisation
+### FRANCE
+
+```{r}
+france <- search_patterns(craft = "knitting", designer_country = "france", availability = "online", page_size = 1431, pattern_source_type = "website")
+```
+
+```{r top 10 designers}
+france_des_10 <- france %>% 
+  group_by(designer.name) %>% 
+  count() %>% 
+  ungroup() %>% 
+  arrange(desc(n)) %>% 
+  slice(2:11)
+
+france_top10 <- france %>% 
+  filter(designer.name %in% france_des_10$designer.name)
+```
+
+```{r getting info for top 10 designers}
+france_10 <- get_patterns(france_top10$id)
+france_10$designer <- france_top10$designer.name
+```
+
+```{r extracting years}
+france_10$published_year <- format(as.Date(france_10$published, format="%Y/%m/%d"),"%Y")
+```
+
+```{r}
+ggplot(france_10, aes(published_year))+
+  geom_bar()
+```
+
+### Compraing to other countries 
+```{r}
+dk <- search_patterns(craft = "knitting", designer_country = "denmark", availability = "online", page_size = 1652, pattern_source_type = "website")
+
+no <- search_patterns(craft = "knitting", designer_country = "norway", availability = "online", page_size = 1506, pattern_source_type = "website")
+
+es <- search_patterns(craft = "knitting", designer_country = "spain", availability = "online", page_size = 570, pattern_source_type = "website")
+
+be <- search_patterns(craft = "knitting", designer_country = "belgium", availability = "online", page_size = 98, pattern_source_type = "website")
+
+cz <- search_patterns(craft = "knitting", designer_country = "caech-republic", availability = "online", page_size = 68, pattern_source_type = "website")
+```
+
+```{r listing countries to loop over}
+countries <- c(dk, no, es, be, cz)
+
+```
+
+```{r function for top 10 designers}
+top_10 <- function(country){
+  designer10 <- country %>% 
+  group_by(designer.name) %>% 
+  count() %>% 
+  ungroup() %>% 
+  arrange(desc(n)) %>% 
+  slice(1:10)
+
+  country10 <- country %>% 
+    filter(designer.name %in% designer10$designer.name)
+}
+```
+
+```{r loop that does not work as is}
+for (country in countries){
+  assign(paste(country, "10", sep = "_"), top_10(country))
+}
+
+```
+
+```{r top 10 for each country in countries}
+dk10 <- top_10(dk)
+no10 <- top_10(no)
+es10 <- top_10(es)
+be10 <- top_10(be)
+cz10 <- top_10(cz)
+```
+
+
+
+
+```{r plotting}
+ggplot(dk, aes(published_year))+
+  geom_bar()
+```
+
+
+
+
+
+
+```{r From 2019 onwards}
+pattern_info$published <- as.Date(pattern_info$published, format = "%Y/%m/%d")
+patterns_2019 <- pattern_info %>% 
+  subset(published > "2018/12/1")
+
+patterns_2019$month <- month(patterns_2019$published)
+
+mean_2019 <- patterns_2019 %>% 
+  group_by(month) %>% 
+  count()
+
+ggplot(patterns_2019, aes(x = published, y = count()))+
+  geom_line()
+```
+
+
+```{r}
+ggplot(pattern_info, aes(as.Date(published)))+
+  geom_line()
+```
+#### ASD #####
+
+```{r}
+asd <- read_csv("/Users/Sillemarkussen/Desktop/Bachelor/data_analysis/clean_voice_data.csv")
+
+# Plot pitch variation values against rated atypicality coloured by actual diagnosis
+ggplot(asd, aes(x = mean_rating_naive, y = p_var, colour = Diagnosis))+
+  geom_point()
+
+# Bar plot showing pause or not by diagnosis
+asd_pause <- asd %>% 
+  group_by(Diagnosis) %>% 
+  count(pause)
+
+ggplot(asd, aes(x = pause, colour = Diagnosis))+
+  geom_bar()
+```
+
