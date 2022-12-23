@@ -1,0 +1,207 @@
+---
+title: "Final project"
+author: "Sille Hasselbalch Markussen"
+date: "11/8/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Loading libraries and data}
+pacman::p_load(tidyverse, lubridate)
+```
+
+## Ravelry API
+In order to scrape data from Ravelry one needs a Ravelry developer account.
+The associated username and password must be set in an .renviron file. 
+Finally the ravelRy package must be installed and loaded.
+```{r}
+#install.packages('ravelRy')
+library(ravelRy)
+```
+
+Get more info from this GitHub: https://github.com/walkerkq/ravelRy
+
+## Example data acquisition, cleaning and visualisation
+### DENMARK
+
+```{r Scraping all serach results of advanced pattern search}
+dk <- search_patterns(craft = "knitting", designer_country = "denmark", availability = "online", page_size = 1649, pattern_source_type = "website")
+```
+
+```{r top 10 designers}
+dk_des_10 <- dk %>% 
+  group_by(designer.name) %>% 
+  count() %>% 
+  ungroup() %>% 
+  arrange(desc(n)) %>% 
+  slice(1:10)
+
+dk_top10 <- dk %>% 
+  filter(designer.name %in% dk_des_10$designer.name)
+```
+
+```{r getting info for top 10 designers}
+dk_10 <- get_patterns(dk_top10$id)
+dk_10$designer <- dk_top10$designer.name
+```
+
+```{r extracting years}
+dk_10$published_year_short <- format(as.Date(dk_10$published, format="%Y/%m/%d"),"%y")
+dk_10$published_year_long <- format(as.Date(dk_10$published, format="%Y/%m/%d"),"%Y")
+```
+
+```{r bar plot}
+ggplot(dk_10, aes(published_year_short))+
+  geom_bar()
+```
+
+## Data acqusition, cleaning and visualisation for remaining countries 
+8 European countries were chosen with varying population size and geographical location to somewhat reflect the variety of countries in Europe. og så skulle det være lande med ikke kun 3 søgeresultater og så 10 fordi også dk
+1-5: France
+6-10: Spain
+11-15: Czech Republic
+16-20: Austria
+21-25: Norway 
+26-30: Ireland
+31-35: Latvia
+36-40: Iceland
+And then my home country Denmark.
+
+```{r}
+fr <- search_patterns(craft = "knitting", designer_country = "france", availability = "online", page_size = 1450, pattern_source_type = "website")
+
+es <- search_patterns(craft = "knitting", designer_country = "spain", availability = "online", page_size = 571, pattern_source_type = "website")
+
+cz <- search_patterns(craft = "knitting", designer_country = "czech-republic", availability = "online", page_size = 68, pattern_source_type = "website")
+
+at <- search_patterns(craft = "knitting", designer_country = "austria", availability = "online", page_size = 166, pattern_source_type = "website")
+
+no <- search_patterns(craft = "knitting", designer_country = "norway", availability = "online", page_size = 1521, pattern_source_type = "website")
+
+ie <- search_patterns(craft = "knitting", designer_country = "ireland", availability = "online", page_size = 479, pattern_source_type = "website")
+
+lv <- search_patterns(craft = "knitting", designer_country = "latvia", availability = "online", page_size = 98, pattern_source_type = "website")
+
+is <- search_patterns(craft = "knitting", designer_country = "iceland", availability = "online", page_size = 165, pattern_source_type = "website")
+
+```
+
+```{r function for top 10 designers}
+top_10 <- function(country){
+  designer10 <- country %>% 
+  group_by(designer.name) %>% 
+  count() %>% 
+  ungroup() %>% 
+  arrange(desc(n)) %>% 
+  slice(1:10)
+
+  country10 <- country %>% 
+    filter(designer.name %in% designer10$designer.name)
+}
+```
+
+```{r top 10 for each country in countries}
+fr10 <- top_10(fr)
+es10 <- top_10(es)
+cz10 <- top_10(cz)
+at10 <- top_10(at)
+no10 <- top_10(no)
+ie10 <- top_10(ie)
+lv10 <- top_10(lv)
+is10 <- top_10(is)
+```
+
+```{r extracting pattern info}
+fr_10 <- get_patterns(fr10$id)
+fr_10$designer <- fr10$designer.name
+
+es_10 <- get_patterns(es10$id)
+es_10$designer <- es10$designer.name
+
+cz_10 <- get_patterns(cz10$id)
+cz_10$designer <- cz10$designer.name
+
+at_10 <- get_patterns(at10$id)
+at_10$designer <- at10$designer.name
+
+no_10 <- get_patterns(no10$id)
+no_10$designer <- no10$designer.name
+
+ie_10 <- get_patterns(ie10$id)
+ie_10$designer <- ie10$designer.name
+
+lv_10 <- get_patterns(lv10$id)
+lv_10$designer <- lv10$designer.name
+
+is_10 <- get_patterns(is10$id)
+is_10$designer <- is10$designer.name
+```
+
+```{r column with country}
+fr_10$country <- "France"
+es_10$country <- "Spain"
+cz_10$country <- "Czech Republic"
+at_10$country <- "Austria"
+no_10$country <- "Norway"
+ie_10$country <- "Ireland"
+lv_10$country <- "Latvia"
+is_10$country <- "Iceland"
+dk_10$country <- "Denmark"
+```
+
+```{r combining to one df}
+countries <- rbind(fr_10, es_10, cz_10, at_10, no_10, ie_10, lv_10, is_10)
+```
+
+```{r extracting years}
+countries$published_year_short <- format(as.Date(countries$published, format="%Y/%m/%d"),"%y")
+countries$published_year_long <- format(as.Date(countries$published, format="%Y/%m/%d"),"%Y")
+```
+
+```{r adding Denmark}
+# Since DK was used as an example for the method and already has a published year column it is added to the df here
+countries <- rbind(countries, dk_10)
+```
+
+```{r getting rid of NAs}
+countries <- countries %>% drop_na(published_year_long)
+```
+
+```{r writing csv}
+# The extract pattern info is quite heavy to run (takes > 3 hours on my MacBook 12 inch)
+countries <- countries %>% 
+  select(published, published_year_long, published_year_short, country, designer, name, product_id)
+
+write_csv(countries, "ravelry_knit_data_clean.csv")
+```
+
+
+## Lockdown dates per country
+```{r read data}
+lockdown_dates <- read_csv("countryLockdowndates.csv")
+```
+
+```{r filtering countries}
+country_list <- c("France", "Spain", "Czechia", "Austria", "Norway", "Ireland", "Latvia", "Iceland", "Denmark")
+lockdown_dat <- lockdown_dates %>% 
+  filter(`Country/Region` %in% country_list)
+```
+
+```{r filtering provinces}
+# All rows that has NA in the Province column indicates a countrywide lockdown 
+lockdown_dat <- lockdown_dat %>% 
+  filter(is.na(Province))
+```
+
+```{r changing date format}
+lockdown_dat$Date <- as.Date(lockdown_dat$Date, format = "%d/%m/%Y")
+```
+
+
+```{r writing csv}
+write_csv(lockdown_dat, "lockdown_data_clean.csv")
+```
+
