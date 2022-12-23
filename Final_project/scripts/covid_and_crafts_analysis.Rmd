@@ -7,21 +7,25 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse, scales)
 ```
 
 ```{r}
-pacman::p_load(tidyverse, scales)
-knit_pat <- read_csv("ravelry_knit_data_clean.csv")
-lockdown <- read_csv("lockdown_data_clean.csv")
+knit_pat <- read_csv("/Users/Sillemarkussen/Desktop/Cultural Data Science/au679472_markussen_sille/Final_project/clean_data/ravelry_knit_data_clean.csv")
+lockdown <- read_csv("/Users/Sillemarkussen/Desktop/Cultural Data Science/au679472_markussen_sille/Final_project/clean_data/lockdown_data_clean.csv")
 ```
 
 ```{r plotting}
-ggplot(knit_pat, aes(published_year_long))+
+publishCountry <- ggplot(knit_pat, aes(published_year_long))+
   geom_bar(colour = "#a3c2c2", fill="#669999")+
   facet_wrap(~as.factor(country))+
   theme_bw()+
-  labs(x = "Year of Publishment", y = "Number of published patterns")
+  labs(x = "Year of Publishment", y = "Number of published patterns")+  
+  theme(axis.text=element_text(size=12)) +
+  theme(axis.title=element_text(size=14)) +
+  theme(strip.text=element_text(size=14))
 
+ggsave("publishCountry.png", plot = publishCountry, width = 11, height = 7, dpi = 320)
 ```
 
 ```{r count per month}
@@ -32,6 +36,7 @@ pat_pr_month <- knit_pat %>%
   summarise(count_mo=n()) %>% 
   subset(published> "2015-01-01")
 ```
+
 ```{r}
 ggplot(pat_pr_month, aes(x = published, y = count_mo, colour = country))+
   geom_line()+
@@ -42,21 +47,19 @@ ggplot(pat_pr_month, aes(x = published, y = count_mo, colour = country))+
 
 
 ```{r}
-pat_sub <- subset(pat_pr_month, published> "2019-03-01" & published < "2022-03-01")
-
-ggplotColours <- function(n = 6, h = c(0, 360) + 15){
-  if ((diff(h) %% 360) < 1) h[2] <- h[2] - 360/n
-  hcl(h = (seq(h[1], h[2], length = n)), c = 100, l = 65)
-}
-
-ggplot(pat_pr_month, aes(x = published, y = count_mo, colour = country))+
+publishTime <- ggplot(pat_pr_month, aes(x = published, y = count_mo, colour = country))+
   geom_line()+
-  geom_vline(xintercept = lockdown$Date, size = 0.4, colour = ggplotColours(n = 9), alpha = 0.7)+
+  geom_vline(xintercept = lockdown$Date, size = 0.4, colour = "black")+
   theme_bw()+
-  labs(x = "Date of Publishment", y = "Number of Published Patterns", title = "Amount of Published Patterns Over Time")+
-  annotate("text", x = as.Date("2020-05-20", "%Y-%m-%d"), y=12, label = "Lockdown", col="black", size=3, parse=TRUE)+
-  annotate("text", x = as.Date("2020-04-22", "%Y-%m-%d"), y=11.65, label = "dates", col="black", size=3, parse=TRUE)
+  labs(x = "Date of Publishment", y = "Number of Published Patterns", colour = "Country")+
+  annotate("text", x = as.Date("2020-08-24", "%Y-%m-%d"), y=16, label = "Lockdown", col="black", size=5, parse=TRUE)+
+  annotate("text", x = as.Date("2020-06-30", "%Y-%m-%d"), y=15.35, label = "dates", col="black", size=5, parse=TRUE)+  
+  theme(axis.text=element_text(size=12)) +
+  theme(axis.title=element_text(size=14))+
+  theme(legend.text=element_text(size=14))+
+  theme(legend.title=element_text(size=16))
   
+ggsave("publishTime.png", plot = publishTime, width = 13, height = 7, dpi = 320)
 ```
 
 
